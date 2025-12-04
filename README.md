@@ -15,7 +15,7 @@
 - open index.html in a browser and you can view,transcode and check status on that page
 
 
-
+```bash
 # Start server
 go run main.go
 
@@ -30,5 +30,5 @@ curl "http://localhost:8000/api/videos"
 
 # Play in browser
 http://localhost:8000/hls/myvideo/master.m3u8
-
+```
 
