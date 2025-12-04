@@ -1,2 +1,5 @@
 /videos
 .env
+/transcoded
+/tmp
+*.json
