@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>Shaka Player Quality Demo</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.8.5/shaka-player.ui.min.js"></script>
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.8.5/controls.min.css"
+        />
+
+        <style>
+            body {
+                font-family: system-ui, sans-serif;
+            }
+            #currentQuality {
+                font-size: 14px;
+                padding: 6px 10px;
+                background: rgba(0, 0, 0, 0.6);
+                color: #fff;
+                border-radius: 4px;
+                position: absolute;
+                top: 12px;
+                left: 12px;
+                z-index: 20;
+            }
+            .video-container {
+                position: relative;
+                width: 900px;
+            }
+            video {
+                width: 100%;
+            }
+        </style>
+    </head>
+
+    <body>
+        <div class="video-container">
+            <div id="currentQuality">Quality: detecting…</div>
+            <video id="video" autoplay muted controls></video>
+        </div>
+
+        <script>
+            const video = document.getElementById("video");
+            const qEl = document.getElementById("currentQuality");
+
+            // Replace this with DASH or HLS
+            // DASH example:
+            // const manifest = "https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd";
+            //
+            // Your HLS example:
+            const manifest = "http://localhost:8000/hls/abr-5/master.m3u8";
+
+            async function init() {
+                const player = new shaka.Player(video);
+
+                window.player = player; // for debugging
+
+                // player.configure({
+                //     streaming: {
+                //         rebufferingGoal: 1,
+                //         bufferingGoal: 2,
+                //         switchTrack: true,
+                //         safeSeekOffset: 0.1,
+                //     },
+                //     abr: {
+                //         switchInterval: 2,
+                //         defaultBandwidthEstimate: 5000000,
+                //     },
+                // });
+
+                // Listen for ABR quality changes
+                player.addEventListener("variantchanged", () => {
+                    updateQuality(player);
+                });
+
+                // Load the stream
+                try {
+                    await player.load(manifest);
+                    updateQuality(player);
+                } catch (e) {
+                    console.error("Error loading stream", e);
+                }
+
+                // Poll every second for safety (Shaka switches silently sometimes)
+                setInterval(() => updateQuality(player), 1000);
+            }
+
+            function updateQuality(player) {
+                const stats = player.getStats();
+
+                const height = stats.height;
+                const width = stats.width;
+                const bitrate = stats.estimatedBandwidth; // bits/sec
+
+                if (!height) return;
+
+                const kbps = bitrate ? Math.round(bitrate / 1000) : null;
+
+                qEl.textContent =
+                    `Quality: ${height}p ` + (kbps ? `(${kbps} kbps)` : "");
+            }
+
+            document.addEventListener("DOMContentLoaded", init);
+        </script>
+    </body>
+</html>

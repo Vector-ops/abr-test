@@ -1,0 +1,159 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>3 Players + Quality Indicators</title>
+
+        <style>
+            body {
+                font-family: sans-serif;
+                background: #111;
+                color: #fff;
+                display: flex;
+                flex-direction: row;
+                gap: 20px;
+                padding: 20px;
+            }
+            .player-container {
+                width: 33%;
+            }
+            video {
+                width: 100%;
+                background: #000;
+            }
+            h2 {
+                margin-bottom: 5px;
+            }
+            .quality {
+                font-size: 14px;
+                margin-top: 5px;
+                opacity: 0.8;
+            }
+        </style>
+
+        <!-- HLS.js -->
+        <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+        <!-- Shaka Player -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/shaka-player/4.10.0/shaka-player.compiled.js"></script>
+
+        <!-- Video.js -->
+        <link
+            href="https://vjs.zencdn.net/8.6.1/video-js.css"
+            rel="stylesheet"
+        />
+        <script src="https://vjs.zencdn.net/8.6.1/video.min.js"></script>
+    </head>
+
+    <body>
+        <!-- HLS.js -->
+        <div class="player-container">
+            <h2>HLS.js</h2>
+            <video id="hlsPlayer" controls></video>
+            <div id="hlsQuality" class="quality">Quality: -</div>
+        </div>
+
+        <!-- Shaka -->
+        <div class="player-container">
+            <h2>Shaka Player</h2>
+            <video id="shakaPlayer" controls></video>
+            <div id="shakaQuality" class="quality">Quality: -</div>
+        </div>
+
+        <!-- Video.js -->
+        <div class="player-container">
+            <h2>Video.js</h2>
+            <video
+                id="videojsPlayer"
+                class="video-js vjs-default-skin"
+                controls
+            ></video>
+            <div id="vjsQuality" class="quality">Quality: -</div>
+        </div>
+
+        <script>
+            const hlsUrl = "http://localhost:8000/hls/abr-4/master.m3u8";
+
+            /* ============================================================
+   1) HLS.js
+   ============================================================ */
+            const hlsVideo = document.getElementById("hlsPlayer");
+            let hls;
+
+            if (Hls.isSupported()) {
+                hls = new Hls();
+                hls.loadSource(hlsUrl);
+                hls.attachMedia(hlsVideo);
+            } else {
+                hlsVideo.src = hlsUrl; // Safari
+            }
+
+            function updateHlsQuality() {
+                if (!hls || hls.currentLevel < 0) return;
+
+                let lvl = hls.levels[hls.currentLevel];
+                if (!lvl) return;
+
+                document.getElementById("hlsQuality").textContent =
+                    `Quality: ${lvl.height}p (${Math.round(lvl.bitrate / 1000)} kbps)`;
+            }
+
+            /* ============================================================
+   2) Shaka Player (HLS - needs enabling)
+   ============================================================ */
+            const shakaVideo = document.getElementById("shakaPlayer");
+            shaka.polyfill.installAll();
+
+            const shakaPlayer = new shaka.Player(shakaVideo);
+            // enable HLS playback for Shaka
+            shakaPlayer.configure({
+                manifest: { hls: { useFullSegmentsForStartTime: false } },
+            });
+
+            shakaPlayer.load(hlsUrl);
+
+            function updateShakaQuality() {
+                const tracks = shakaPlayer.getVariantTracks();
+                const active = tracks.find((t) => t.active);
+
+                if (!active) return;
+
+                document.getElementById("shakaQuality").textContent =
+                    `Quality: ${active.height}p (${Math.round(active.bandwidth / 1000)} kbps)`;
+            }
+
+            /* ============================================================
+   3) Video.js + VHS
+   ============================================================ */
+            const vjs = videojs("videojsPlayer", {
+                controls: true,
+                preload: "auto",
+                sources: [{ src: hlsUrl, type: "application/x-mpegURL" }],
+            });
+
+            function updateVjsQuality() {
+                const tech = vjs.tech();
+                const vhs = tech?.vhs;
+                const media = vhs?.playlists?.media?.();
+                if (!media || !media.attributes) return;
+
+                const height = media.attributes.RESOLUTION?.height;
+                const bw = media.attributes.BANDWIDTH;
+
+                if (height) {
+                    document.getElementById("vjsQuality").textContent =
+                        `Quality: ${height}p (${Math.round(bw / 1000)} kbps)`;
+                }
+            }
+
+            /* ============================================================
+   Poll every 500ms for updates
+   ============================================================ */
+            setInterval(() => {
+                updateHlsQuality();
+                updateShakaQuality();
+                updateVjsQuality();
+            }, 500);
+        </script>
+    </body>
+</html>
