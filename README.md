@@ -1,6 +1,6 @@
 # ABR-TEST
 
-**All the videos are compiled to hls only for keeping things simple**
+**All the videos are transcoded to hls only for keeping things simple**
 
 **video.js and shaka-player support both hls and dash**
 
